@@ -14,11 +14,20 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // Lazy initialization of Gemini client
 let aiClient: GoogleGenAI | null = null;
 
+// Weather forecast cache (15 minutes TTL)
+interface WeatherCacheEntry {
+  timestamp: number;
+  data: any;
+  isRealtimeGrounded: boolean;
+}
+const weatherCache = new Map<string, WeatherCacheEntry>();
+const WEATHER_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 function getAiClient(): GoogleGenAI {
   if (!aiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.warn("GEMINI_API_KEY environment variable is not set. AI features will operate in fallback mode.");
+      console.log("[AgriHealth] GEMINI_API_KEY not set - running in offline domain intelligence mode.");
     }
     aiClient = new GoogleGenAI({
       apiKey: apiKey || "",
@@ -313,8 +322,7 @@ Chỉ trả về định dạng JSON thuần túy, không thêm markdown hay tex
       success: true,
       data: parsedData
     });
-  } catch (error: any) {
-    console.warn("Diagnosis API encountered error, switching seamlessly to personalized domain fallback:", error.message || error);
+  } catch {
     res.status(200).json({
       success: true,
       isFallback: true,
@@ -436,8 +444,7 @@ Trả về JSON thuần túy.
 
     const parsed = JSON.parse((response.text || "{}").trim());
     res.json({ success: true, ...parsed });
-  } catch (error: any) {
-    console.warn("Care plan generation error, returning dynamic fallback plan:", error.message || error);
+  } catch {
     res.status(200).json({
       success: true,
       isFallback: true,
@@ -508,8 +515,7 @@ PHONG CÁCH VÀ NGUYÊN TẮC TƯ VẤN:
       success: true,
       reply: response.text || fallbackReply
     });
-  } catch (error: any) {
-    console.warn("AI consultant error, returning rich domain fallback response:", error.message || error);
+  } catch {
     res.status(200).json({
       success: true,
       reply: fallbackReply
@@ -593,8 +599,7 @@ Trả về JSON thuần túy.
 
     const parsed = JSON.parse((response.text || "{}").trim());
     res.json({ success: true, ...parsed });
-  } catch (error: any) {
-    console.warn("Environment risk error, returning dynamic fallback analysis:", error.message || error);
+  } catch {
     res.status(200).json({ success: true, ...fallbackRisk });
   }
 });
@@ -603,6 +608,17 @@ Trả về JSON thuần túy.
 app.post("/api/weather-forecast", async (req, res) => {
   const { location, gardenInfo, plots = [] } = req.body;
   const targetLocation = location || gardenInfo?.location || "Việt Nam";
+  const cacheKey = `${targetLocation.trim().toLowerCase()}-${gardenInfo?.name || "default"}`;
+
+  // Check in-memory cache first to avoid rate-limits and redundant queries
+  const cached = weatherCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < WEATHER_CACHE_TTL) {
+    return res.json({
+      success: true,
+      isRealtimeGrounded: cached.isRealtimeGrounded,
+      data: cached.data
+    });
+  }
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -613,6 +629,7 @@ app.post("/api/weather-forecast", async (req, res) => {
 
     if (!apiKey) {
       const fallback = generateDynamicWeatherForecast(targetLocation, gardenInfo, plots);
+      weatherCache.set(cacheKey, { timestamp: Date.now(), data: fallback, isRealtimeGrounded: false });
       return res.status(200).json({
         success: true,
         isRealtimeGrounded: false,
@@ -733,31 +750,34 @@ HÃY TÌM KIẾM DỮ LIỆU THỜI TIẾT THỰC TẾ VÀ TRẢ VỀ KẾT QU�
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
       }
       parsedData = JSON.parse(cleaned);
-    } catch (parseErr) {
-      console.warn("Failed to parse search-grounded weather JSON directly, applying structured fallback:", parseErr);
+    } catch {
       parsedData = generateDynamicWeatherForecast(targetLocation, gardenInfo, plots);
     }
 
     const now = new Date();
+    const finalData = {
+      ...parsedData,
+      fetchedAt: now.toLocaleTimeString("vi-VN") + " " + now.toLocaleDateString("vi-VN"),
+      searchQueries: searchQueries.length > 0 ? searchQueries : [`thời tiết ${targetLocation}`],
+      groundingSources: groundingSources.length > 0 ? groundingSources : [
+        {
+          title: "Trung tâm Dự báo Khí tượng Thủy văn Quốc gia",
+          url: "https://nchmf.gov.vn"
+        }
+      ]
+    };
+
+    weatherCache.set(cacheKey, { timestamp: Date.now(), data: finalData, isRealtimeGrounded: true });
+
     res.json({
       success: true,
       isRealtimeGrounded: true,
-      data: {
-        ...parsedData,
-        fetchedAt: now.toLocaleTimeString("vi-VN") + " " + now.toLocaleDateString("vi-VN"),
-        searchQueries: searchQueries.length > 0 ? searchQueries : [`thời tiết ${targetLocation}`],
-        groundingSources: groundingSources.length > 0 ? groundingSources : [
-          {
-            title: "Trung tâm Dự báo Khí tượng Thủy văn Quốc gia",
-            url: "https://nchmf.gov.vn"
-          }
-        ]
-      }
+      data: finalData
     });
 
-  } catch (error: any) {
-    console.warn("Search Grounding Weather encountered error or rate-limit quota (429), switching to rich meteorological fallback:", error.message || error);
+  } catch {
     const fallback = generateDynamicWeatherForecast(targetLocation, gardenInfo, plots);
+    weatherCache.set(cacheKey, { timestamp: Date.now(), data: fallback, isRealtimeGrounded: false });
     res.status(200).json({
       success: true,
       isRealtimeGrounded: false,

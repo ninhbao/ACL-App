@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { 
   Calendar, 
   Sparkles, 
@@ -16,9 +16,13 @@ import {
   Layers,
   ChevronDown,
   Trash2,
-  DollarSign
+  DollarSign,
+  BookOpenCheck,
+  Calculator,
+  Coins,
+  Package
 } from "lucide-react";
-import { GardenProfile, GardenPlot, CareTask, TaskCategory } from "../types";
+import { GardenProfile, GardenPlot, CareTask, TaskCategory, TaskMaterialItem } from "../types";
 
 interface PersonalizedCarePlanProps {
   garden: GardenProfile;
@@ -26,6 +30,13 @@ interface PersonalizedCarePlanProps {
   onAddTask: (task: CareTask) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+}
+
+interface FormMaterialItem {
+  id: string;
+  name: string;
+  dosage: string;
+  costVND: string | number;
 }
 
 const CATEGORY_MAP: Record<TaskCategory, { label: string; icon: any; color: string }> = {
@@ -49,6 +60,7 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
   const [showAiModal, setShowAiModal] = useState<boolean>(false);
   const [showNewTaskModal, setShowNewTaskModal] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // AI Plan Generation State
   const [targetPlotId, setTargetPlotId] = useState<string>(garden.plots[0]?.id || "");
@@ -64,8 +76,42 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
   const [newTaskDate, setNewTaskDate] = useState(new Date().toISOString().slice(0, 10));
   const [newTaskTime, setNewTaskTime] = useState("Sáng sớm (06:00 - 08:00)");
   const [newTaskInstructions, setNewTaskInstructions] = useState("");
-  const [newTaskDosage, setNewTaskDosage] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<"high" | "medium" | "low">("medium");
+
+  // Materials List with 3 distinct fields: Name, Dosage, Cost
+  const [materialsList, setMaterialsList] = useState<FormMaterialItem[]>([
+    { id: "mat-1", name: "", dosage: "", costVND: "" }
+  ]);
+
+  const handleAddMaterialRow = () => {
+    setMaterialsList((prev) => [
+      ...prev,
+      { id: `mat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`, name: "", dosage: "", costVND: "" }
+    ]);
+  };
+
+  const handleRemoveMaterialRow = (index: number) => {
+    if (materialsList.length <= 1) {
+      setMaterialsList([{ id: `mat-${Date.now()}`, name: "", dosage: "", costVND: "" }]);
+      return;
+    }
+    setMaterialsList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMaterialChange = (index: number, field: keyof FormMaterialItem, value: any) => {
+    setMaterialsList((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const totalMaterialsCost = useMemo(() => {
+    return materialsList.reduce((acc, m) => {
+      const cost = typeof m.costVND === "number" ? m.costVND : Number(m.costVND) || 0;
+      return acc + (isNaN(cost) ? 0 : Math.max(0, cost));
+    }, 0);
+  }, [materialsList]);
 
   // Filtered tasks for current garden
   const farmTasks = tasks.filter((t) => t.farmId === garden.id);
@@ -146,16 +192,41 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
+    // Filter valid materials
+    const validMaterials: TaskMaterialItem[] = materialsList
+      .map((m) => ({
+        name: m.name.trim(),
+        dosage: m.dosage.trim(),
+        costVND: m.costVND !== "" && !isNaN(Number(m.costVND)) ? Math.max(0, Number(m.costVND)) : undefined
+      }))
+      .filter((m) => m.name !== "" || m.dosage !== "" || m.costVND !== undefined);
+
+    // Format combined dosage text
+    let combinedDosage = "";
+    if (validMaterials.length > 0) {
+      combinedDosage = validMaterials
+        .map((m) => {
+          if (m.name && m.dosage) return `${m.name}: ${m.dosage}`;
+          if (m.name) return m.name;
+          return m.dosage;
+        })
+        .join(", ");
+    }
+
+    const taskCost = totalMaterialsCost > 0 ? totalMaterialsCost : undefined;
+
     const task: CareTask = {
       id: `task-${Date.now()}`,
       farmId: garden.id,
       plotId: newTaskPlotId,
       date: newTaskDate,
-      title: newTaskTitle,
+      title: newTaskTitle.trim(),
       category: newTaskCategory,
       timeOfDay: newTaskTime,
-      instructions: newTaskInstructions,
-      dosage: newTaskDosage,
+      instructions: newTaskInstructions.trim(),
+      dosage: combinedDosage || undefined,
+      materials: validMaterials.length > 0 ? validMaterials : undefined,
+      costVND: taskCost,
       priority: newTaskPriority,
       isCompleted: false,
       assignedTo: "Chủ vườn / Nhân công"
@@ -165,7 +236,20 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
     setShowNewTaskModal(false);
     setNewTaskTitle("");
     setNewTaskInstructions("");
-    setNewTaskDosage("");
+    setMaterialsList([{ id: `mat-${Date.now()}`, name: "", dosage: "", costVND: "" }]);
+  };
+
+  const handleToggleWithFeedback = (task: CareTask) => {
+    const willComplete = !task.isCompleted;
+    onToggleTask(task.id);
+    const plot = garden.plots.find((p) => p.id === task.plotId);
+    const plotName = plot ? plot.name : "Lô vườn";
+    if (willComplete) {
+      setToastMessage(`Đã hoàn thành "${task.title}" và tự động đồng bộ sang Nhật ký canh tác của ${plotName}!`);
+    } else {
+      setToastMessage(`Đã hủy hoàn thành và thu hồi ghi chép tương ứng khỏi Nhật ký.`);
+    }
+    setTimeout(() => setToastMessage(null), 4500);
   };
 
   return (
@@ -181,7 +265,7 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
             Lịch Chăm Sóc & Dinh Dưỡng Cây Trồng
           </h1>
           <p className="text-[#527050] text-xs sm:text-sm mt-1.5 leading-relaxed max-w-2xl">
-            Phác đồ điều tiết theo đúng tuổi cây, loại đất <strong className="text-[#2D5A27] font-bold">{garden.soilType}</strong> và tiêu chuẩn <strong className="text-[#2D5A27] font-bold">{garden.cultivationStandard}</strong>.
+            Phác đồ điều tiết theo đúng tuổi cây, loại đất <strong className="text-[#2D5A27] font-bold">{garden.soilType}</strong> và tiêu chuẩn <strong className="text-[#2D5A27] font-bold">{garden.cultivationStandard}</strong>. Dữ liệu khi hoàn thành sẽ <strong className="text-[#2D5A27]">tự động đồng bộ vào Nhật ký canh tác</strong>.
           </p>
         </div>
 
@@ -208,6 +292,23 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Sync Toast Notification */}
+      {toastMessage && (
+        <div className="bg-[#E8F3E8] border border-[#A3D99E] text-[#1E3F1A] px-5 py-3.5 rounded-2xl flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold">
+            <BookOpenCheck className="w-4 h-4 text-[#2D5A27]" />
+            <span>{toastMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-[#527050] hover:text-[#1E3F1A] font-bold text-sm cursor-pointer p-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Progress & Overview Bento Card */}
       <div className="bg-[#F4F9F4] rounded-3xl p-5 sm:p-6 border border-[#E2ECE2] shadow-[0_4px_20px_-4px_rgba(45,90,39,0.04)] flex flex-col md:flex-row items-center justify-between gap-4">
@@ -284,8 +385,9 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
                 {/* Complete Toggle Button */}
                 <button
                   type="button"
-                  onClick={() => onToggleTask(task.id)}
+                  onClick={() => handleToggleWithFeedback(task)}
                   className="mt-1 shrink-0 text-slate-400 hover:text-[#2D5A27] transition cursor-pointer"
+                  title={task.isCompleted ? "Hủy hoàn thành (thu hồi đồng bộ)" : "Đánh dấu hoàn thành & Tự động đồng bộ sang Nhật ký"}
                 >
                   {task.isCompleted ? (
                     <CheckCircle2 className="w-6 h-6 text-[#2D5A27] fill-[#E8F3E8]" />
@@ -304,6 +406,13 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
                     <span className="text-xs font-semibold text-slate-600 bg-[#F9FBF9] px-2.5 py-0.5 rounded-full border border-[#E2ECE2]">
                       {plotObj?.name || "Lô vườn"}
                     </span>
+
+                    {task.isCompleted && (
+                      <span className="text-[11px] font-bold text-emerald-800 bg-[#E8F3E8] px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                        <BookOpenCheck className="w-3 h-3 text-[#2D5A27]" />
+                        <span>Đã đồng bộ sang Nhật ký</span>
+                      </span>
+                    )}
 
                     {task.priority === "high" && !task.isCompleted && (
                       <span className="text-[10px] font-extrabold bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full uppercase">
@@ -334,10 +443,37 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
                         Liều: {task.dosage}
                       </span>
                     )}
+                    {task.costVND !== undefined && task.costVND > 0 && (
+                      <span className="text-amber-800 font-bold bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-200 flex items-center gap-1">
+                        <Coins className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Chi phí: {task.costVND.toLocaleString("vi-VN")} đ</span>
+                      </span>
+                    )}
                     {task.assignedTo && (
                       <span className="text-slate-500">Phụ trách: {task.assignedTo}</span>
                     )}
                   </div>
+
+                  {/* Material breakdown badges if present */}
+                  {task.materials && task.materials.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      {task.materials.map((mat, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium bg-[#F4F9F4] text-[#2D5A27] px-2.5 py-0.5 rounded-lg border border-[#E2ECE2]"
+                        >
+                          <Package className="w-3 h-3 text-[#527050]" />
+                          <span className="font-semibold">{mat.name}</span>
+                          {mat.dosage && <span className="text-slate-500">({mat.dosage})</span>}
+                          {mat.costVND !== undefined && mat.costVND > 0 && (
+                            <span className="font-bold text-amber-700 bg-amber-100/80 px-1.5 py-0.2 rounded text-[10px] ml-0.5">
+                              {mat.costVND.toLocaleString("vi-VN")}đ
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -509,37 +645,42 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
 
       {/* MODAL: Custom Manual Task */}
       {showNewTaskModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <form
             onSubmit={handleCreateCustomTask}
-            className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-[#E2ECE2] animate-in fade-in zoom-in-95 duration-150 space-y-4 text-xs sm:text-sm"
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-[#E2ECE2] animate-in fade-in zoom-in-95 duration-150 space-y-4 text-xs sm:text-sm my-8 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-start justify-between pb-2 border-b border-[#F0F5F0]">
-              <h3 className="text-lg font-bold text-slate-900">
-                Thêm Nhiệm Vụ Chăm Sóc Mới
-              </h3>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <span>Thêm Nhiệm Vụ Chăm Sóc Mới</span>
+                </h3>
+                <p className="text-xs text-[#527050] mt-0.5">
+                  Lên lịch hoạt động canh tác kèm định mức vật tư và chi phí chi tiết
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowNewTaskModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 font-bold p-1 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Tên công việc:</label>
+              <label className="block font-bold text-slate-700 mb-1">Tên công việc / hoạt động:</label>
               <input
                 type="text"
                 required
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Ví dụ: Rải vôi nông nghiệp nâng pH Lô A..."
+                placeholder="Ví dụ: Bón phân thúc cơi đọt Lô A, Phun ngừa nấm Phytophthora..."
                 className="w-full p-3 bg-[#F9FBF9] border border-[#E2ECE2] rounded-2xl outline-none focus:ring-2 focus:ring-[#2D5A27]"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Hạng mục:</label>
                 <select
@@ -564,14 +705,14 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
                 >
                   {garden.plots.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {p.name} ({p.cropName})
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Ngày thực hiện:</label>
                 <input
@@ -594,41 +735,138 @@ export const PersonalizedCarePlan: React.FC<PersonalizedCarePlanProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Liều lượng / Vật tư:</label>
-              <input
-                type="text"
-                value={newTaskDosage}
-                onChange={(e) => setNewTaskDosage(e.target.value)}
-                placeholder="Ví dụ: 300g vôi/gốc hoặc 500ml/phuy 200L"
-                className="w-full p-3 bg-[#F9FBF9] border border-[#E2ECE2] rounded-2xl outline-none"
-              />
+            {/* SEPARATED MATERIALS SECTION: 3 INPUTS (NAME, DOSAGE, COST) + DYNAMIC ROWS + TOTAL COST */}
+            <div className="p-4 bg-[#F4F9F4] rounded-2xl border border-[#D5E8D5] space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#2D5A27]" />
+                  <label className="font-bold text-slate-800 text-xs sm:text-sm">
+                    Vật Tư, Phân Bón & Thuốc BVTV
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddMaterialRow}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#2D5A27] hover:text-[#1E3F1A] bg-white hover:bg-[#E8F3E8] px-3 py-1.5 rounded-xl border border-[#A3D99E] shadow-2xs transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Thêm vật tư</span>
+                </button>
+              </div>
+
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-0.5">
+                {materialsList.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className="p-3 bg-white rounded-2xl border border-[#E2ECE2] shadow-2xs space-y-2"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                      {/* 1. Tên Vật Tư */}
+                      <div className="sm:col-span-5">
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Tên Vật Tư #{idx + 1}:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => handleMaterialChange(idx, "name", e.target.value)}
+                          placeholder="Ví dụ: NPK 20-20-15, Trichoderma..."
+                          className="w-full p-2.5 text-xs bg-[#F9FBF9] border border-[#E2ECE2] rounded-xl outline-none focus:ring-2 focus:ring-[#2D5A27]"
+                        />
+                      </div>
+
+                      {/* 2. Liều Lượng */}
+                      <div className="sm:col-span-4">
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Liều Lượng:
+                        </label>
+                        <input
+                          type="text"
+                          value={item.dosage}
+                          onChange={(e) => handleMaterialChange(idx, "dosage", e.target.value)}
+                          placeholder="500g/gốc, 250ml/200L..."
+                          className="w-full p-2.5 text-xs bg-[#F9FBF9] border border-[#E2ECE2] rounded-xl outline-none focus:ring-2 focus:ring-[#2D5A27]"
+                        />
+                      </div>
+
+                      {/* 3. Chi Phí */}
+                      <div className="sm:col-span-3 flex items-end gap-1.5">
+                        <div className="flex-1">
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                            Chi Phí (VNĐ):
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            value={item.costVND}
+                            onChange={(e) => handleMaterialChange(idx, "costVND", e.target.value)}
+                            placeholder="85000"
+                            className="w-full p-2.5 text-xs bg-[#F9FBF9] border border-[#E2ECE2] rounded-xl outline-none focus:ring-2 focus:ring-[#2D5A27]"
+                          />
+                        </div>
+
+                        {materialsList.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMaterialRow(idx)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer mb-0.5"
+                            title="Xóa dòng vật tư này"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Live Calculated Total Cost Banner */}
+              <div className="p-3.5 bg-white rounded-2xl border border-[#A3D99E] flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <div className="w-7 h-7 rounded-xl bg-[#E8F3E8] flex items-center justify-center text-[#2D5A27]">
+                    <Calculator className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-slate-800 block">Tổng Chi Phí Vật Tư:</span>
+                    <span className="text-[11px] text-[#527050]">Tự động cộng dồn theo các mục trên</span>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-1 bg-[#F4F9F4] px-3.5 py-1.5 rounded-xl border border-[#D5E8D5]">
+                  <span className="text-base font-extrabold text-[#2D5A27]">
+                    {totalMaterialsCost.toLocaleString("vi-VN")}
+                  </span>
+                  <span className="text-xs font-bold text-[#527050]">VNĐ</span>
+                </div>
+              </div>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Hướng dẫn chi tiết:</label>
+              <label className="block font-bold text-slate-700 mb-1">Hướng dẫn / Ghi chú kỹ thuật:</label>
               <textarea
                 value={newTaskInstructions}
                 onChange={(e) => setNewTaskInstructions(e.target.value)}
                 rows={2}
-                placeholder="Ghi chú kỹ thuật thực hiện..."
+                placeholder="Ghi chú thêm về quy cách tưới xả, bảo hộ lao động hoặc hướng gió khi phun..."
                 className="w-full p-3 bg-[#F9FBF9] border border-[#E2ECE2] rounded-2xl outline-none resize-none"
               />
             </div>
 
-            <div className="pt-3 border-t border-[#F0F5F0] flex justify-end gap-2">
+            <div className="pt-3 border-t border-[#F0F5F0] flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setShowNewTaskModal(false)}
-                className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                className="px-4 py-2.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
               >
                 Đóng
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-[#2D5A27] hover:bg-[#1E3F1A] text-white font-bold rounded-2xl shadow-sm cursor-pointer"
+                className="px-5 py-2.5 bg-[#2D5A27] hover:bg-[#1E3F1A] text-white font-bold rounded-2xl shadow-sm flex items-center gap-2 cursor-pointer transition"
               >
-                Lưu Nhiệm Vụ
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Lưu Nhiệm Vụ & Chi Phí</span>
               </button>
             </div>
           </form>

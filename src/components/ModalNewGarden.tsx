@@ -19,30 +19,30 @@ interface ModalNewGardenProps {
 
 const PRESET_TEMPLATES = [
   {
-    title: "Vườn Sầu Riêng Xuất Khẩu (Tây Nguyên)",
-    name: "Trang Trại Sầu Riêng Krông Pắc",
-    location: "Krông Pắc, Đắk Lắk",
-    soilType: "Đất đỏ Bazan Tây Nguyên" as SoilType,
-    soilPH: 5.6,
+    title: "Vườn Sầu Riêng Xuất Khẩu (Bình Phước)",
+    name: "Nhà Vườn Khu Vực Bình Phước",
+    location: "Huyện Bù Đăng, Tỉnh Bình Phước",
+    soilType: "Đất đỏ Bazan Đông Nam Bộ / Bình Phước" as SoilType,
+    soilPH: 5.8,
     irrigationType: "Tưới nhỏ giọt bù áp Israel" as IrrigationType,
     cultivationStandard: "VietGAP (Nông nghiệp sạch)" as CultivationStandard,
     crop: "Sầu riêng",
-    variety: "Ri6 & Musang King",
-    treeCount: 150,
-    areaHa: 2.5
+    variety: "Monthong (Dona) & Ri6",
+    treeCount: 260,
+    areaHa: 4.5
   },
   {
-    title: "Vườn Bưởi Da Xanh & Cam Sành (Miền Tây)",
-    name: "Vườn Bưởi Da Xanh Sông Tiền",
-    location: "Châu Thành, Bến Tre",
-    soilType: "Đất phù sa ngọt sông Tiền/sông Hậu" as SoilType,
+    title: "Vườn Mãng Cầu Dai & Bưởi (Tây Ninh)",
+    name: "Nhà Vườn Khu Vực Tây Ninh",
+    location: "Chân Núi Bà Đen, TP. Tây Ninh",
+    soilType: "Đất phù sa cổ / Đất xám bạc màu" as SoilType,
     soilPH: 6.2,
     irrigationType: "Tưới phun mưa cục bộ dưới gốc" as IrrigationType,
-    cultivationStandard: "Hữu cơ Sinh học (Organic 100%)" as CultivationStandard,
-    crop: "Bưởi Da Xanh",
-    variety: "Ruột hồng Bến Tre",
-    treeCount: 180,
-    areaHa: 1.8
+    cultivationStandard: "VietGAP (Nông nghiệp sạch)" as CultivationStandard,
+    crop: "Mãng cầu dai",
+    variety: "Mãng Cầu Dai Bà Đen",
+    treeCount: 440,
+    areaHa: 3.2
   },
   {
     title: "Nông Trại Công Nghệ Cao (Đà Lạt / Lâm Đồng)",
@@ -58,21 +58,22 @@ const PRESET_TEMPLATES = [
     areaHa: 1.2
   },
   {
-    title: "Vườn Thanh Long Chong Đèn (Bình Thuận)",
-    name: "Trang Trại Thanh Long Ruột Đỏ Hàm Thuận",
-    location: "Hàm Thuận Nam, Bình Thuận",
-    soilType: "Đất thịt nhẹ pha cát ven biển" as SoilType,
-    soilPH: 5.8,
-    irrigationType: "Tưới nhỏ giọt bù áp Israel" as IrrigationType,
-    cultivationStandard: "VietGAP (Nông nghiệp sạch)" as CultivationStandard,
-    crop: "Thanh Long",
-    variety: "Ruột đỏ LĐ1",
-    treeCount: 1200,
-    areaHa: 3.0
+    title: "Vườn Bưởi Da Xanh & Cam Sành (Miền Tây)",
+    name: "Vườn Bưởi Da Xanh Sông Tiền",
+    location: "Châu Thành, Bến Tre",
+    soilType: "Đất phù sa ngọt sông Tiền/sông Hậu" as SoilType,
+    soilPH: 6.2,
+    irrigationType: "Tưới phun mưa cục bộ dưới gốc" as IrrigationType,
+    cultivationStandard: "Hữu cơ Sinh học (Organic 100%)" as CultivationStandard,
+    crop: "Bưởi Da Xanh",
+    variety: "Ruột hồng Bến Tre",
+    treeCount: 180,
+    areaHa: 1.8
   }
 ];
 
 const SOIL_OPTIONS: SoilType[] = [
+  "Đất đỏ Bazan Đông Nam Bộ / Bình Phước",
   "Đất đỏ Bazan Tây Nguyên",
   "Đất phù sa ngọt sông Tiền/sông Hậu",
   "Đất phù sa cổ / Đất xám bạc màu",

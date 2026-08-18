@@ -42,12 +42,12 @@ interface WeatherForecastViewProps {
 }
 
 const REGION_QUICK_SEARCH = [
+  { name: "Bù Đăng, Bình Phước", desc: "Đông Nam Bộ • Đất đỏ Bazan • Sầu riêng, Điều, Tiêu" },
+  { name: "Núi Bà Đen, Tây Ninh", desc: "Đông Nam Bộ • Đất phù sa cổ • Mãng cầu dai, Bưởi" },
   { name: "Cư M'gar, Đắk Lắk", desc: "Tây Nguyên • Đất đỏ Bazan • Sầu riêng, Cà phê" },
   { name: "Cái Bè, Tiền Giang", desc: "ĐBSCL • Phù sa ngọt • Sầu riêng, Mít" },
-  { name: "Bảo Lộc, Lâm Đồng", desc: "Cao nguyên • Đất đồi dốc • Trà, Cà phê, Bơ" },
-  { name: "Chợ Gạo, Tiền Giang", desc: "ĐBSCL • Thanh long, Bưởi da xanh" },
   { name: "Long Khánh, Đồng Nai", desc: "Đông Nam Bộ • Chôm chôm, Măng cụt" },
-  { name: "Lục Ngạn, Bắc Giang", desc: "Miền Bắc • Đất đồi • Vải thiều, Cam" }
+  { name: "Lạc Dương, Lâm Đồng", desc: "Cao nguyên • Rau củ quả công nghệ cao" }
 ];
 
 export const WeatherForecastView: React.FC<WeatherForecastViewProps> = ({

@@ -12,7 +12,8 @@ import {
   GardenProfile, 
   DiagnosisRecord, 
   CareTask, 
-  FarmDiaryLog 
+  FarmDiaryLog,
+  LogCategory
 } from "./types";
 import { 
   SAMPLE_GARDENS, 
@@ -21,12 +22,17 @@ import {
   INITIAL_DIARY_LOGS 
 } from "./data/sampleGardens";
 
+const DATA_VERSION = "v3_bp_tn";
+
 export default function App() {
-  // 1. Garden State (with localStorage persistence)
+  // 1. Garden State (with localStorage persistence & version check)
   const [gardens, setGardens] = useState<GardenProfile[]>(() => {
     try {
-      const saved = localStorage.getItem("agricare_gardens");
-      if (saved) return JSON.parse(saved);
+      const ver = localStorage.getItem("agricare_version");
+      if (ver === DATA_VERSION) {
+        const saved = localStorage.getItem("agricare_gardens");
+        if (saved) return JSON.parse(saved);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -35,10 +41,13 @@ export default function App() {
 
   const [currentGardenId, setCurrentGardenId] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem("agricare_active_garden_id");
-      if (saved) return saved;
+      const ver = localStorage.getItem("agricare_version");
+      if (ver === DATA_VERSION) {
+        const saved = localStorage.getItem("agricare_active_garden_id");
+        if (saved && SAMPLE_GARDENS.some(g => g.id === saved)) return saved;
+      }
     } catch (e) {}
-    return SAMPLE_GARDENS[0]?.id || "garden-daklak-saurieng";
+    return SAMPLE_GARDENS[0]?.id || "garden-binhphuoc";
   });
 
   // Active Garden Profile
@@ -48,8 +57,11 @@ export default function App() {
   // 2. Health & Diagnostic Records
   const [diagnoses, setDiagnoses] = useState<DiagnosisRecord[]>(() => {
     try {
-      const saved = localStorage.getItem("agricare_diagnoses");
-      if (saved) return JSON.parse(saved);
+      const ver = localStorage.getItem("agricare_version");
+      if (ver === DATA_VERSION) {
+        const saved = localStorage.getItem("agricare_diagnoses");
+        if (saved) return JSON.parse(saved);
+      }
     } catch (e) {}
     return INITIAL_DIAGNOSES;
   });
@@ -57,8 +69,11 @@ export default function App() {
   // 3. Care Schedule Tasks
   const [tasks, setTasks] = useState<CareTask[]>(() => {
     try {
-      const saved = localStorage.getItem("agricare_tasks");
-      if (saved) return JSON.parse(saved);
+      const ver = localStorage.getItem("agricare_version");
+      if (ver === DATA_VERSION) {
+        const saved = localStorage.getItem("agricare_tasks");
+        if (saved) return JSON.parse(saved);
+      }
     } catch (e) {}
     return INITIAL_CARE_TASKS;
   });
@@ -66,8 +81,11 @@ export default function App() {
   // 4. Farm Diary Logs
   const [logs, setLogs] = useState<FarmDiaryLog[]>(() => {
     try {
-      const saved = localStorage.getItem("agricare_logs");
-      if (saved) return JSON.parse(saved);
+      const ver = localStorage.getItem("agricare_version");
+      if (ver === DATA_VERSION) {
+        const saved = localStorage.getItem("agricare_logs");
+        if (saved) return JSON.parse(saved);
+      }
     } catch (e) {}
     return INITIAL_DIARY_LOGS;
   });
@@ -79,6 +97,7 @@ export default function App() {
 
   // Persistence Effects
   useEffect(() => {
+    localStorage.setItem("agricare_version", DATA_VERSION);
     localStorage.setItem("agricare_gardens", JSON.stringify(gardens));
   }, [gardens]);
 
@@ -155,17 +174,93 @@ export default function App() {
   };
 
   const handleToggleTask = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    const willBeCompleted = !task.isCompleted;
+    const completedTime = willBeCompleted
+      ? new Date().toISOString().slice(0, 16).replace("T", " ")
+      : undefined;
+
+    // 1. Update task state and persist
+    setTasks((prev) => {
+      const updated = prev.map((t) =>
         t.id === id
           ? {
               ...t,
-              isCompleted: !t.isCompleted,
-              completedAt: !t.isCompleted ? new Date().toISOString().slice(0, 16).replace("T", " ") : undefined
+              isCompleted: willBeCompleted,
+              completedAt: completedTime
             }
           : t
-      )
-    );
+      );
+      try {
+        localStorage.setItem("agricare_tasks", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Error saving tasks:", e);
+      }
+      return updated;
+    });
+
+    // 2. Automatically sync to Farm Diary Logs by garden & plot
+    const syncLogId = `log-sync-task-${task.id}`;
+
+    if (willBeCompleted) {
+      // Map task category to log category
+      let logCategory: LogCategory = "general";
+      if (task.category === "fertilizer") logCategory = "fertilizing";
+      else if (task.category === "pest_control") logCategory = "treatment";
+      else if (task.category === "soil_care") logCategory = "soil_test";
+      else if (task.category === "harvest") logCategory = "harvest";
+      else if (task.category === "inspection") logCategory = "inspection";
+
+      // Extract material information if relevant
+      let materialName: string | undefined = undefined;
+      if (task.materials && task.materials.length > 0) {
+        materialName = task.materials
+          .map((m) => `${m.name}${m.dosage ? ` (${m.dosage})` : ""}${m.costVND ? ` [${m.costVND.toLocaleString("vi-VN")} đ]` : ""}`)
+          .join(" + ");
+      } else if (task.category === "fertilizer" || task.category === "pest_control") {
+        materialName = task.dosage ? `${task.title} (${task.dosage})` : task.title;
+      }
+
+      const newSyncedLog: FarmDiaryLog = {
+        id: syncLogId,
+        farmId: task.farmId,
+        plotId: task.plotId,
+        date: new Date().toISOString().slice(0, 10),
+        category: logCategory,
+        title: task.title,
+        details: `[Tự động đồng bộ từ Lịch canh tác & Phác đồ] Đã hoàn thành nhiệm vụ: ${task.instructions || task.title}.${task.dosage ? ` Vật tư & Liều lượng: ${task.dosage}.` : ""}${task.timeOfDay ? ` Khung giờ: ${task.timeOfDay}.` : ""}`,
+        materialName: materialName,
+        materials: task.materials && task.materials.length > 0 ? task.materials : undefined,
+        operatorName: task.assignedTo || currentGarden.ownerName || "Chủ vườn",
+        metrics: {
+          costVND: task.costVND,
+        }
+      };
+
+      setLogs((prev) => {
+        const withoutOld = prev.filter((l) => l.id !== syncLogId);
+        const updated = [newSyncedLog, ...withoutOld];
+        try {
+          localStorage.setItem("agricare_logs", JSON.stringify(updated));
+        } catch (e) {
+          console.error("Error syncing diary logs:", e);
+        }
+        return updated;
+      });
+    } else {
+      // If unchecked, remove the automatically synced log
+      setLogs((prev) => {
+        const updated = prev.filter((l) => l.id !== syncLogId);
+        try {
+          localStorage.setItem("agricare_logs", JSON.stringify(updated));
+        } catch (e) {
+          console.error("Error removing uncompleted log sync:", e);
+        }
+        return updated;
+      });
+    }
   };
 
   const handleDeleteTask = (id: string) => {
@@ -173,11 +268,27 @@ export default function App() {
   };
 
   const handleAddLog = (newLog: FarmDiaryLog) => {
-    setLogs((prev) => [newLog, ...prev]);
+    setLogs((prev) => {
+      const updated = [newLog, ...prev];
+      try {
+        localStorage.setItem("agricare_logs", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Error persisting diary logs to localStorage:", e);
+      }
+      return updated;
+    });
   };
 
   const handleDeleteLog = (id: string) => {
-    setLogs((prev) => prev.filter((l) => l.id !== id));
+    setLogs((prev) => {
+      const updated = prev.filter((l) => l.id !== id);
+      try {
+        localStorage.setItem("agricare_logs", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Error updating diary logs in localStorage:", e);
+      }
+      return updated;
+    });
   };
 
   const handleOpenDiagnosisFromOverview = (plotId?: string) => {

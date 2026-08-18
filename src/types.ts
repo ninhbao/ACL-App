@@ -1,4 +1,5 @@
 export type SoilType =
+  | "Đất đỏ Bazan Đông Nam Bộ / Bình Phước"
   | "Đất đỏ Bazan Tây Nguyên"
   | "Đất phù sa ngọt sông Tiền/sông Hậu"
   | "Đất phù sa cổ / Đất xám bạc màu"
@@ -107,6 +108,13 @@ export type TaskCategory =
   | "harvest"
   | "inspection";
 
+export interface TaskMaterialItem {
+  id?: string;
+  name: string;
+  dosage: string;
+  costVND?: number;
+}
+
 export interface CareTask {
   id: string;
   farmId: string;
@@ -117,6 +125,7 @@ export interface CareTask {
   timeOfDay: string;
   instructions: string;
   dosage?: string;
+  materials?: TaskMaterialItem[];
   priority: "high" | "medium" | "low";
   isCompleted: boolean;
   completedAt?: string;
@@ -141,6 +150,13 @@ export interface FarmDiaryLog {
   category: LogCategory;
   title: string;
   details: string;
+  materialName?: string;
+  materials?: TaskMaterialItem[];
+  quantity?: number;
+  unit?: string;
+  unitPriceVND?: number;
+  supplier?: string;
+  batchNumber?: string;
   metrics?: {
     soilPH?: number;
     soilMoisture?: number;
