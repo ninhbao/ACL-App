@@ -1,0 +1,10 @@
+{
+  "name": "Remix Remix Quản Lý Sức Khoẻ Cây Trồng Nhà Vườn",
+  "description": "Hệ thống quản lý sức khoẻ cây trồng thông minh được cá nhân hoá theo từng đặc thù nhà vườn, tích hợp chẩn đoán sâu bệnh bằng AI, phác đồ điều trị, dự báo rủi ro sinh thái và nhật ký canh tác.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
