@@ -7,12 +7,12 @@ import { GardenProfileManager } from "./components/GardenProfileManager";
 import { FarmDiaryLogs } from "./components/FarmDiaryLogs";
 import { AIConsultantChat } from "./components/AIConsultantChat";
 import { WeatherForecastView } from "./components/WeatherForecastView";
-import { ModalNewGarden } from "./components/ModalNewGarden";
+import { ModalAddGarden } from "./components/ModalAddGarden";
 import { 
   GardenProfile, 
   DiagnosisRecord, 
   CareTask, 
-  FarmDiaryLog,
+  FarmDiaryLog, 
   LogCategory
 } from "./types";
 import { 
@@ -22,16 +22,19 @@ import {
   INITIAL_DIARY_LOGS 
 } from "./data/sampleGardens";
 
-const DATA_VERSION = "v3_bp_tn";
+const DATA_VERSION = "v6_region_owner_management";
 
 export default function App() {
-  // 1. Garden State (with localStorage persistence & version check)
+  // 1. Multi-Garden State by Region & Owner (with localStorage persistence)
   const [gardens, setGardens] = useState<GardenProfile[]>(() => {
     try {
       const ver = localStorage.getItem("agricare_version");
       if (ver === DATA_VERSION) {
-        const saved = localStorage.getItem("agricare_gardens");
-        if (saved) return JSON.parse(saved);
+        const saved = localStorage.getItem("agricare_gardens_list");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
       }
     } catch (e) {
       console.error(e);
@@ -39,20 +42,19 @@ export default function App() {
     return SAMPLE_GARDENS;
   });
 
-  const [currentGardenId, setCurrentGardenId] = useState<string>(() => {
+  const [activeGardenId, setActiveGardenId] = useState<string>(() => {
     try {
-      const ver = localStorage.getItem("agricare_version");
-      if (ver === DATA_VERSION) {
-        const saved = localStorage.getItem("agricare_active_garden_id");
-        if (saved && SAMPLE_GARDENS.some(g => g.id === saved)) return saved;
-      }
+      const savedId = localStorage.getItem("agricare_active_garden_id");
+      if (savedId && gardens.some((g) => g.id === savedId)) return savedId;
     } catch (e) {}
-    return SAMPLE_GARDENS[0]?.id || "garden-binhphuoc";
+    return gardens[0]?.id || "garden-bp-phuoc";
   });
 
+  // Modal Add Garden State
+  const [isAddGardenModalOpen, setIsAddGardenModalOpen] = useState(false);
+
   // Active Garden Profile
-  const currentGarden =
-    gardens.find((g) => g.id === currentGardenId) || gardens[0] || SAMPLE_GARDENS[0];
+  const currentGarden = gardens.find((g) => g.id === activeGardenId) || gardens[0] || SAMPLE_GARDENS[0];
 
   // 2. Health & Diagnostic Records
   const [diagnoses, setDiagnoses] = useState<DiagnosisRecord[]>(() => {
@@ -93,17 +95,96 @@ export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [targetPlotForDiagnosis, setTargetPlotForDiagnosis] = useState<string | undefined>(undefined);
-  const [isNewGardenModalOpen, setIsNewGardenModalOpen] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<"locating" | "ready" | "denied" | "error">("locating");
+
+  // Automatic Geolocation & Weather Detection for current active garden
+  const detectLocationAndWeather = (isManual = false) => {
+    setGpsStatus("locating");
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const res = await fetch("/api/detect-location-weather", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ lat: latitude, lon: longitude })
+            });
+            const data = await res.json();
+            if (data.success && data.locationName) {
+              setGardens((prev) =>
+                prev.map((g) =>
+                  g.id === currentGarden.id
+                    ? {
+                        ...g,
+                        location: data.locationName,
+                        weatherStation: {
+                          ...g.weatherStation,
+                          tempC: data.current?.tempC ?? g.weatherStation.tempC,
+                          humidityPct: data.current?.humidityPct ?? g.weatherStation.humidityPct,
+                          condition: data.current?.condition ?? g.weatherStation.condition,
+                          rainfallMm: data.current?.rainfallMm ?? g.weatherStation.rainfallMm
+                        }
+                      }
+                    : g
+                )
+              );
+              setGpsStatus("ready");
+            } else {
+              setGpsStatus("ready");
+            }
+          } catch (e) {
+            console.error("GPS Weather detection error:", e);
+            setGpsStatus("error");
+          }
+        },
+        async (err) => {
+          console.warn("Geolocation permission error or unavailable", err);
+          setGpsStatus(err.code === 1 ? "denied" : "error");
+          // Fallback fetch
+          try {
+            const res = await fetch("/api/detect-location-weather", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({})
+            });
+            const data = await res.json();
+            if (data.success && data.current) {
+              setGardens((prev) =>
+                prev.map((g) =>
+                  g.id === currentGarden.id
+                    ? {
+                        ...g,
+                        weatherStation: {
+                          ...g.weatherStation,
+                          tempC: data.current.tempC,
+                          humidityPct: data.current.humidityPct,
+                          condition: data.current.condition
+                        }
+                      }
+                    : g
+                )
+              );
+            }
+          } catch (e) {}
+        },
+        { timeout: 8000, enableHighAccuracy: true, maximumAge: 300000 }
+      );
+    } else {
+      setGpsStatus("denied");
+    }
+  };
+
+  useEffect(() => {
+    detectLocationAndWeather(false);
+  }, [activeGardenId]);
 
   // Persistence Effects
   useEffect(() => {
     localStorage.setItem("agricare_version", DATA_VERSION);
-    localStorage.setItem("agricare_gardens", JSON.stringify(gardens));
-  }, [gardens]);
-
-  useEffect(() => {
-    localStorage.setItem("agricare_active_garden_id", currentGardenId);
-  }, [currentGardenId]);
+    localStorage.setItem("agricare_gardens_list", JSON.stringify(gardens));
+    localStorage.setItem("agricare_active_garden_id", activeGardenId);
+  }, [gardens, activeGardenId]);
 
   useEffect(() => {
     localStorage.setItem("agricare_diagnoses", JSON.stringify(diagnoses));
@@ -117,15 +198,15 @@ export default function App() {
     localStorage.setItem("agricare_logs", JSON.stringify(logs));
   }, [logs]);
 
-  // Handlers
-  const handleSelectGarden = (g: GardenProfile) => {
-    setCurrentGardenId(g.id);
+  // Handlers for Multi-Garden Management
+  const handleSelectGarden = (id: string) => {
+    setActiveGardenId(id);
   };
 
   const handleAddGarden = (newGarden: GardenProfile) => {
     setGardens((prev) => [newGarden, ...prev]);
-    setCurrentGardenId(newGarden.id);
-    setActiveTab("overview");
+    setActiveGardenId(newGarden.id);
+    setActiveTab("plots");
   };
 
   const handleUpdateGarden = (updated: GardenProfile) => {
@@ -133,19 +214,18 @@ export default function App() {
   };
 
   const handleDeleteGarden = (id: string) => {
-    if (gardens.length <= 1) {
-      alert("Hệ thống cần lưu giữ ít nhất 1 nhà vườn.");
-      return;
-    }
-    const filtered = gardens.filter((g) => g.id !== id);
-    setGardens(filtered);
-    setCurrentGardenId(filtered[0].id);
+    setGardens((prev) => {
+      const next = prev.filter((g) => g.id !== id);
+      if (activeGardenId === id && next.length > 0) {
+        setActiveGardenId(next[0].id);
+      }
+      return next;
+    });
   };
 
   const handleSaveDiagnosis = (record: DiagnosisRecord) => {
     setDiagnoses((prev) => [record, ...prev]);
     
-    // If severity is severe/critical, also automatically create care task reminder
     if (record.result.severityLevel === "severe" || record.result.severityLevel === "critical") {
       const autoTask: CareTask = {
         id: `task-auto-${Date.now()}`,
@@ -182,7 +262,6 @@ export default function App() {
       ? new Date().toISOString().slice(0, 16).replace("T", " ")
       : undefined;
 
-    // 1. Update task state and persist
     setTasks((prev) => {
       const updated = prev.map((t) =>
         t.id === id
@@ -201,11 +280,9 @@ export default function App() {
       return updated;
     });
 
-    // 2. Automatically sync to Farm Diary Logs by garden & plot
     const syncLogId = `log-sync-task-${task.id}`;
 
     if (willBeCompleted) {
-      // Map task category to log category
       let logCategory: LogCategory = "general";
       if (task.category === "fertilizer") logCategory = "fertilizing";
       else if (task.category === "pest_control") logCategory = "treatment";
@@ -213,7 +290,6 @@ export default function App() {
       else if (task.category === "harvest") logCategory = "harvest";
       else if (task.category === "inspection") logCategory = "inspection";
 
-      // Extract material information if relevant
       let materialName: string | undefined = undefined;
       if (task.materials && task.materials.length > 0) {
         materialName = task.materials
@@ -230,7 +306,7 @@ export default function App() {
         date: new Date().toISOString().slice(0, 10),
         category: logCategory,
         title: task.title,
-        details: `[Tự động đồng bộ từ Lịch canh tác & Phác đồ] Đã hoàn thành nhiệm vụ: ${task.instructions || task.title}.${task.dosage ? ` Vật tư & Liều lượng: ${task.dosage}.` : ""}${task.timeOfDay ? ` Khung giờ: ${task.timeOfDay}.` : ""}`,
+        details: `[Tự động đồng bộ từ Lịch canh tác & Phác đồ] Đã hoàn thành: ${task.instructions || task.title}.${task.dosage ? ` Vật tư: ${task.dosage}.` : ""}`,
         materialName: materialName,
         materials: task.materials && task.materials.length > 0 ? task.materials : undefined,
         operatorName: task.assignedTo || currentGarden.ownerName || "Chủ vườn",
@@ -250,7 +326,6 @@ export default function App() {
         return updated;
       });
     } else {
-      // If unchecked, remove the automatically synced log
       setLogs((prev) => {
         const updated = prev.filter((l) => l.id !== syncLogId);
         try {
@@ -296,16 +371,20 @@ export default function App() {
     setActiveTab("diagnosis");
   };
 
+  const existingRegions = Array.from(new Set(gardens.map((g) => g.region || "Khu Vực Khác")));
+
   return (
     <div className="min-h-screen bg-[#F9FBF9] text-[#1a2e18] flex flex-col font-sans antialiased selection:bg-[#E8F3E8] selection:text-[#2D5A27]">
-      {/* Top Navigation & Garden Switcher Bar */}
+      {/* Top Navigation Bar with Region & Garden Owner Switcher */}
       <Navbar
         gardens={gardens}
         currentGarden={currentGarden}
         onSelectGarden={handleSelectGarden}
-        onOpenNewGardenModal={() => setIsNewGardenModalOpen(true)}
+        onOpenAddGarden={() => setIsAddGardenModalOpen(true)}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        gpsStatus={gpsStatus}
+        onRefreshLocation={() => detectLocationAndWeather(true)}
       />
 
       {/* Main Content Area */}
@@ -339,6 +418,26 @@ export default function App() {
             garden={currentGarden}
             onAddTaskFromWeather={(task) => handleAddTask(task)}
             onNavigateToCarePlan={() => setActiveTab("care-plan")}
+            onUpdateLocation={(newLoc, newWeather) => {
+              setGardens((prev) =>
+                prev.map((g) =>
+                  g.id === currentGarden.id
+                    ? {
+                        ...g,
+                        location: newLoc,
+                        weatherStation: newWeather
+                          ? {
+                              ...g.weatherStation,
+                              tempC: newWeather.tempC ?? g.weatherStation.tempC,
+                              humidityPct: newWeather.humidityPct ?? g.weatherStation.humidityPct,
+                              condition: newWeather.condition ?? g.weatherStation.condition
+                            }
+                          : g.weatherStation
+                      }
+                    : g
+                )
+              );
+            }}
           />
         )}
 
@@ -355,17 +454,23 @@ export default function App() {
         {activeTab === "diary" && (
           <FarmDiaryLogs
             garden={currentGarden}
+            gardens={gardens}
             logs={logs}
             onAddLog={handleAddLog}
             onDeleteLog={handleDeleteLog}
+            onSelectGarden={handleSelectGarden}
           />
         )}
 
         {activeTab === "plots" && (
           <GardenProfileManager
-            garden={currentGarden}
+            gardens={gardens}
+            activeGardenId={currentGarden.id}
+            onSelectGarden={handleSelectGarden}
+            onAddGarden={handleAddGarden}
             onUpdateGarden={handleUpdateGarden}
             onDeleteGarden={handleDeleteGarden}
+            onOpenAddGardenModal={() => setIsAddGardenModalOpen(true)}
           />
         )}
 
@@ -376,24 +481,25 @@ export default function App() {
         )}
       </main>
 
+      {/* Modal Add Garden */}
+      <ModalAddGarden
+        isOpen={isAddGardenModalOpen}
+        onClose={() => setIsAddGardenModalOpen(false)}
+        onAddGarden={handleAddGarden}
+        existingRegions={existingRegions}
+      />
+
       {/* Footer */}
       <footer className="bg-white/90 border-t border-[#E2ECE2] py-6 text-center text-xs text-[#527050] mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
-            Hệ thống Quản Lý Sức Khoẻ Cây Trồng Cá Nhân Hoá • <strong className="text-[#2D5A27]">{currentGarden.name}</strong> ({currentGarden.location})
+            Quản Lý Vùng Canh Tác: <strong className="text-[#2D5A27]">{currentGarden.region}</strong> • Chủ vườn: <strong className="text-slate-800">{currentGarden.ownerName}</strong> ({currentGarden.location})
           </div>
           <div className="text-[#739270]">
-            Ứng dụng Trí tuệ Nhân tạo Nông Y & Tiêu chuẩn {currentGarden.cultivationStandard.split(" ")[0]}
+            Hệ thống Quản lý Sức khỏe & Nông học Phân cấp theo Khu vực và Chủ Hộ
           </div>
         </div>
       </footer>
-
-      {/* Modal: New Garden */}
-      <ModalNewGarden
-        isOpen={isNewGardenModalOpen}
-        onClose={() => setIsNewGardenModalOpen(false)}
-        onAddGarden={handleAddGarden}
-      />
     </div>
   );
 }

@@ -39,6 +39,7 @@ interface WeatherForecastViewProps {
   garden: GardenProfile;
   onAddTaskFromWeather?: (task: CareTask) => void;
   onNavigateToCarePlan?: () => void;
+  onUpdateLocation?: (loc: string, weather?: any) => void;
 }
 
 const REGION_QUICK_SEARCH = [
@@ -54,13 +55,55 @@ export const WeatherForecastView: React.FC<WeatherForecastViewProps> = ({
   garden,
   onAddTaskFromWeather,
   onNavigateToCarePlan,
+  onUpdateLocation,
 }) => {
   const [locationQuery, setLocationQuery] = useState(garden.location);
   const [loading, setLoading] = useState(false);
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
   const [forecastData, setForecastData] = useState<RealtimeWeatherForecastData | null>(null);
   const [selectedDay, setSelectedDay] = useState<DailyForecast | null>(null);
   const [addedTasks, setAddedTasks] = useState<Record<string, boolean>>({});
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  // Trigger GPS detection directly from weather view
+  const handleDetectGps = () => {
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      setIsDetectingGps(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            const res = await fetch("/api/detect-location-weather", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ lat: latitude, lon: longitude })
+            });
+            const data = await res.json();
+            if (data.success && data.locationName) {
+              setLocationQuery(data.locationName);
+              fetchWeatherForecast(data.locationName);
+              if (onUpdateLocation) {
+                onUpdateLocation(data.locationName, data.current);
+              }
+              setFeedbackMessage(`Đã xác định vị trí hiện tại: ${data.locationName}`);
+              setTimeout(() => setFeedbackMessage(null), 3000);
+            }
+          } catch (e) {
+            console.error("GPS detection error in weather view:", e);
+          } finally {
+            setIsDetectingGps(false);
+          }
+        },
+        (err) => {
+          console.warn("GPS error:", err);
+          setIsDetectingGps(false);
+          setFeedbackMessage("Không thể truy cập GPS, vui lòng cho phép quyền vị trí trên trình duyệt.");
+          setTimeout(() => setFeedbackMessage(null), 4000);
+        },
+        { timeout: 8000, enableHighAccuracy: true }
+      );
+    }
+  };
 
   // Fetch meteorological data using Search Grounding
   const fetchWeatherForecast = async (loc?: string) => {
@@ -213,7 +256,7 @@ export const WeatherForecastView: React.FC<WeatherForecastViewProps> = ({
               e.preventDefault();
               fetchWeatherForecast(locationQuery);
             }}
-            className="flex flex-col sm:flex-row gap-2 max-w-xl"
+            className="flex flex-col sm:flex-row gap-2 max-w-2xl"
           >
             <div className="relative flex-1">
               <MapPin className="w-4 h-4 text-[#A3D99E] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -221,17 +264,30 @@ export const WeatherForecastView: React.FC<WeatherForecastViewProps> = ({
                 type="text"
                 value={locationQuery}
                 onChange={(e) => setLocationQuery(e.target.value)}
-                placeholder="Nhập địa điểm vườn (Ví dụ: Huyện Cái Bè, Tiền Giang)..."
+                placeholder="Nhập địa điểm vườn hoặc dùng nút GPS bên cạnh..."
                 className="w-full pl-10 pr-4 py-2.5 bg-[#162e13] border border-[#2D5A27] text-white placeholder-emerald-200/50 rounded-2xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-[#A3D99E]"
               />
             </div>
+            
+            {/* Direct GPS Button */}
+            <button
+              type="button"
+              onClick={handleDetectGps}
+              disabled={isDetectingGps}
+              title="Định vị tọa độ hiện tại bằng GPS"
+              className="px-3.5 py-2.5 bg-[#2D5A27] hover:bg-[#386b31] text-[#A3D99E] hover:text-white font-bold text-xs sm:text-sm rounded-2xl border border-emerald-400/30 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              <MapPin className={`w-4 h-4 ${isDetectingGps ? "animate-spin text-amber-300" : "text-emerald-400"}`} />
+              <span>{isDetectingGps ? "Đang dò GPS..." : "Dùng Vị Trí Hiện Tại"}</span>
+            </button>
+
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2.5 bg-[#2D5A27] hover:bg-[#386b31] text-white font-bold text-xs sm:text-sm rounded-2xl border border-emerald-400/30 transition flex items-center justify-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs sm:text-sm rounded-2xl shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
             >
               <Search className="w-4 h-4" />
-              <span>Tra Cứu Vùng</span>
+              <span>Tra Cứu</span>
             </button>
           </form>
 

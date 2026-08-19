@@ -51,9 +51,11 @@ export interface GardenPlot {
 export interface GardenProfile {
   id: string;
   name: string;
-  ownerName: string;
+  region: string; // Khu vực canh tác (ví dụ: "Bình Phước", "Tây Ninh", "Đắk Lắk", "Tiền Giang")
+  ownerName: string; // Tên chủ vườn (ví dụ: Nguyễn Văn Phước)
   phone: string;
-  location: string; // Tỉnh / Huyện
+  location: string; // Tỉnh / Huyện / Địa chỉ
+  farmCode?: string; // Mã số vùng trồng (MSVT)
   totalAreaHa: number;
   soilType: SoilType;
   soilPH: number; // ví dụ: 5.8

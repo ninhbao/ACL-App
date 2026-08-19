@@ -2,24 +2,26 @@ import { GardenProfile, DiagnosisRecord, CareTask, FarmDiaryLog } from "../types
 
 export const SAMPLE_GARDENS: GardenProfile[] = [
   {
-    id: "garden-binhphuoc",
-    name: "Nhà Vườn Khu Vực Bình Phước",
+    id: "garden-bp-phuoc",
+    name: "Vườn Sầu Riêng Dona & Ri6 Bù Đăng",
+    region: "Khu Vực Bình Phước",
     ownerName: "Nguyễn Văn Phước",
     phone: "0918 234 567",
-    location: "Huyện Bù Đăng, Tỉnh Bình Phước (Đông Nam Bộ)",
+    location: "Huyện Bù Đăng, Tỉnh Bình Phước",
+    farmCode: "VN-BPC-0892",
     totalAreaHa: 4.5,
     soilType: "Đất đỏ Bazan Đông Nam Bộ / Bình Phước",
     soilPH: 5.8,
     irrigationType: "Tưới nhỏ giọt bù áp Israel",
     cultivationStandard: "VietGAP (Nông nghiệp sạch)",
     createdAt: "2024-02-15",
-    notes: "Vùng đất đỏ bazan Bình Phước màu mỡ tầng canh tác dày, địa hình đồi thoai thoải thoát nước cực tốt. Chuyên canh sầu riêng Dona & Ri6 xuất khẩu theo quy chuẩn VietGAP kết hợp quản lý dịch hại tổng hợp IPM.",
+    notes: "Vùng đất đỏ bazan Bình Phước tầng canh tác dày, đồi thoai thoải thoát nước tốt. Chuyên canh sầu riêng Dona & Ri6 theo VietGAP và quản lý dịch hại IPM.",
     weatherStation: {
       tempC: 30.5,
       humidityPct: 78,
       condition: "Nắng ráo, chiều tối có mưa dông nhiệt nhẹ",
       rainfallMm: 15,
-      forecast: "Thời tiết Bình Phước ấm áp, độ ẩm vừa phải thích hợp cơi đọt phát triển và nuôi quả. Cần kiểm tra rãnh thoát nước sau cơn dông."
+      forecast: "Thời tiết Bình Phước ấm áp, thích hợp cơi đọt phát triển và nuôi quả. Chú ý thoát nước rãnh sau mưa dông."
     },
     plots: [
       {
@@ -38,7 +40,7 @@ export const SAMPLE_GARDENS: GardenProfile[] = [
       },
       {
         id: "plot-bp-2",
-        name: "Lô B - Sầu Riêng Ri6 & Musang King Đang Làm Cơi Đọt 2",
+        name: "Lô B - Sầu Riêng Ri6 & Musang King Làm Cơi Đọt 2",
         cropName: "Sầu riêng",
         variety: "Ri6 & Musang King (D197)",
         treeCount: 140,
@@ -52,7 +54,7 @@ export const SAMPLE_GARDENS: GardenProfile[] = [
       },
       {
         id: "plot-bp-3",
-        name: "Lô C - Vườn Sầu Riêng Kiến Thiết Cơ Bản 2 Năm Tuổi",
+        name: "Lô C - Vườn Sầu Riêng Kiến Thiết 2 Năm Tuổi",
         cropName: "Sầu riêng gốc ghép",
         variety: "Gốc ghép địa phương + chồi Dona",
         treeCount: 220,
@@ -66,31 +68,71 @@ export const SAMPLE_GARDENS: GardenProfile[] = [
     ]
   },
   {
-    id: "garden-tayninh",
-    name: "Nhà Vườn Khu Vực Tây Ninh",
-    ownerName: "Trần Văn Ninh & Chú Sáu",
+    id: "garden-bp-nam",
+    name: "Vườn Cây Ăn Trái & Tiêu Bù Gia Mập",
+    region: "Khu Vực Bình Phước",
+    ownerName: "Lê Hoàng Nam",
+    phone: "0977 456 123",
+    location: "Huyện Bù Gia Mập, Tỉnh Bình Phước",
+    farmCode: "VN-BPC-0914",
+    totalAreaHa: 3.5,
+    soilType: "Đất đỏ Bazan Đông Nam Bộ / Bình Phước",
+    soilPH: 6.0,
+    irrigationType: "Tưới phun mưa cục bộ dưới gốc",
+    cultivationStandard: "Hướng hữu cơ / An toàn sinh học",
+    createdAt: "2024-04-10",
+    notes: "Vườn canh tác kết hợp hữu cơ sinh học, sử dụng phân chuồng ủ trichoderma và thảm cỏ giữ ẩm.",
+    weatherStation: {
+      tempC: 30.0,
+      humidityPct: 80,
+      condition: "Nắng gián đoạn, mát mẻ về chiều",
+      rainfallMm: 10,
+      forecast: "Nhiệt ẩm ổn định, chú ý phòng ngừa bọ cánh cứng chích hút."
+    },
+    plots: [
+      {
+        id: "plot-bpn-1",
+        name: "Lô 1 - Bơ Booth 7 & Sầu Riêng Xen Canh",
+        cropName: "Bơ & Sầu riêng",
+        variety: "Bơ Booth 7 + Ri6",
+        treeCount: 160,
+        plantedYear: 2020,
+        treeAgeYears: 6,
+        stage: "Nuôi trái / Định hình phẩm chất",
+        areaM2: 20000,
+        healthScore: 89,
+        lastInspectionDate: "2026-08-16"
+      }
+    ]
+  },
+  {
+    id: "garden-tn-mai",
+    name: "Vườn Mãng Cầu Dai Tân Châu",
+    region: "Khu Vực Tây Ninh",
+    ownerName: "Trần Thị Mai",
     phone: "0909 778 899",
-    location: "Chân Núi Bà Đen, TP. Tây Ninh, Tỉnh Tây Ninh",
-    totalAreaHa: 3.2,
+    location: "Xã Tân Phú, Huyện Tân Châu, Tỉnh Tây Ninh",
+    farmCode: "VN-TNH-0341",
+    totalAreaHa: 3.8,
     soilType: "Đất phù sa cổ / Đất xám bạc màu",
     soilPH: 6.2,
     irrigationType: "Tưới phun mưa cục bộ dưới gốc",
     cultivationStandard: "VietGAP (Nông nghiệp sạch)",
     createdAt: "2023-10-18",
-    notes: "Vùng đất chân núi Bà Đen có thổ nhưỡng đặc thù và khí hậu nhiều nắng gió điều hòa từ hồ Dầu Tiếng, chuyên canh Mãng Cầu Dai Bà Đen trứ danh (chỉ dẫn địa lý OCOP) kết hợp Bưởi Da Xanh ruột hồng.",
+    notes: "Chuyên canh Mãng Cầu Dai Tây Ninh theo tiêu chuẩn OCOP và VietGAP, xử lý trái vụ.",
     weatherStation: {
       tempC: 32.2,
       humidityPct: 72,
-      condition: "Nắng ấm chan hòa, trời trong, gió nhẹ chân núi",
+      condition: "Nắng ấm chan hòa, trời trong, gió nhẹ",
       rainfallMm: 0,
-      forecast: "Thời tiết Tây Ninh nắng ráo thuận lợi quang hợp tích tụ đường độ brix. Duy trì tưới phun mưa giữ ẩm mặt liếp 2 ngày/lần."
+      forecast: "Nắng ráo thuận lợi quang hợp tích tụ đường độ brix. Tưới giữ ẩm 2 ngày/lần."
     },
     plots: [
       {
         id: "plot-tn-1",
-        name: "Lô 1 - Mãng Cầu Dai Bà Đen Nuôi Trái & Bao Trái",
+        name: "Lô 1 - Mãng Cầu Dai Núi Bà Nuôi Trái & Bao Trái",
         cropName: "Mãng cầu dai",
-        variety: "Mãng Cầu Dai Núi Bà Đen",
+        variety: "Mãng Cầu Dai Núi Bà",
         treeCount: 280,
         plantedYear: 2020,
         treeAgeYears: 6,
@@ -102,7 +144,7 @@ export const SAMPLE_GARDENS: GardenProfile[] = [
       },
       {
         id: "plot-tn-2",
-        name: "Lô 2 - Bưởi Da Xanh & Mít Ruột Đỏ In-đô Làm Cơi Đọt",
+        name: "Lô 2 - Bưởi Da Xanh & Mít Ruột Đỏ Làm Cơi Đọt",
         cropName: "Bưởi Da Xanh",
         variety: "Bưởi Da Xanh & Mít Ruột Đỏ",
         treeCount: 160,
@@ -113,6 +155,121 @@ export const SAMPLE_GARDENS: GardenProfile[] = [
         healthScore: 88,
         recentIssue: "Sâu vẽ bùa nhẹ trên cơi đọt non mới nhú",
         lastInspectionDate: "2026-08-16"
+      }
+    ]
+  },
+  {
+    id: "garden-tn-tuan",
+    name: "Vườn Bưởi Da Xanh & Sầu Riêng Dương Minh Châu",
+    region: "Khu Vực Tây Ninh",
+    ownerName: "Ngô Minh Tuấn",
+    phone: "0933 881 290",
+    location: "Huyện Dương Minh Châu, Tỉnh Tây Ninh",
+    farmCode: "VN-TNH-0518",
+    totalAreaHa: 2.5,
+    soilType: "Đất phù sa cổ / Đất xám bạc màu",
+    soilPH: 6.0,
+    irrigationType: "Tưới nhỏ giọt bù áp Israel",
+    cultivationStandard: "GlobalGAP (Xuất khẩu quốc tế)",
+    createdAt: "2024-01-12",
+    notes: "Khu vực cạnh hồ Dầu Tiếng, nguồn nước dồi dào, canh tác GlobalGAP xuất khẩu.",
+    weatherStation: {
+      tempC: 32.0,
+      humidityPct: 74,
+      condition: "Nắng ráo, gió mát từ hồ Dầu Tiếng",
+      rainfallMm: 2,
+      forecast: "Thời tiết lý tưởng cho phát triển trái và kiểm soát rầy rệp."
+    },
+    plots: [
+      {
+        id: "plot-tnt-1",
+        name: "Lô A - Bưởi Da Xanh Ruột Hồng Đang Nuôi Trái",
+        cropName: "Bưởi Da Xanh",
+        variety: "Da Xanh ruột hồng Bến Tre ghép",
+        treeCount: 190,
+        plantedYear: 2021,
+        treeAgeYears: 5,
+        stage: "Nuôi trái / Định hình phẩm chất",
+        areaM2: 14000,
+        healthScore: 94,
+        lastInspectionDate: "2026-08-16"
+      }
+    ]
+  },
+  {
+    id: "garden-dl-krong",
+    name: "Vườn Sầu Riêng & Cà Phê Cư M'gar",
+    region: "Khu Vực Đắk Lắk",
+    ownerName: "Y Krong Niê",
+    phone: "0988 554 321",
+    location: "Huyện Cư M'gar, Tỉnh Đắk Lắk",
+    farmCode: "VN-DLK-0775",
+    totalAreaHa: 5.0,
+    soilType: "Đất đỏ Bazan Tây Nguyên",
+    soilPH: 5.6,
+    irrigationType: "Tưới phun mưa cục bộ dưới gốc",
+    cultivationStandard: "VietGAP (Nông nghiệp sạch)",
+    createdAt: "2023-08-20",
+    notes: "Vùng thủ phủ cà phê và sầu riêng Đắk Lắk, đất đỏ bazan tầng dày trên 2m, khí hậu 2 mùa mưa nắng rõ rệt.",
+    weatherStation: {
+      tempC: 27.8,
+      humidityPct: 84,
+      condition: "Mát mẻ, mây dông chiều tối Tây Nguyên",
+      rainfallMm: 22,
+      forecast: "Mưa dông Tây Nguyên về chiều. Cần kiểm tra nấm Phytophthora cổ rễ sầu riêng."
+    },
+    plots: [
+      {
+        id: "plot-dl-1",
+        name: "Lô 1 - Sầu Riêng Dona Cư M'gar 8 Năm Tuổi",
+        cropName: "Sầu riêng",
+        variety: "Dona Thái Lan",
+        treeCount: 180,
+        plantedYear: 2018,
+        treeAgeYears: 8,
+        stage: "Nuôi trái / Định hình phẩm chất",
+        areaM2: 25000,
+        healthScore: 87,
+        recentIssue: "Chú ý xì mủ nứt thân gốc do ẩm cao",
+        lastInspectionDate: "2026-08-17"
+      }
+    ]
+  },
+  {
+    id: "garden-tg-loi",
+    name: "Vườn Sầu Riêng Cái Bè ĐBSCL",
+    region: "Khu Vực Tiền Giang",
+    ownerName: "Huỳnh Văn Lợi",
+    phone: "0913 678 910",
+    location: "Xã Hòa Khánh, Huyện Cái Bè, Tiền Giang",
+    farmCode: "VN-TGG-0219",
+    totalAreaHa: 2.2,
+    soilType: "Đất phù sa ngọt sông Tiền/sông Hậu",
+    soilPH: 5.9,
+    irrigationType: "Tưới tràn rãnh mương truyền thống",
+    cultivationStandard: "VietGAP (Nông nghiệp sạch)",
+    createdAt: "2023-05-14",
+    notes: "Đất phù sa sông Tiền màu mỡ, hệ thống liếp và mương dẫn nước điều tiết linh hoạt.",
+    weatherStation: {
+      tempC: 31.0,
+      humidityPct: 82,
+      condition: "Nắng tốt ban ngày, triều cường và mưa rào nhẹ",
+      rainfallMm: 12,
+      forecast: "Kiểm tra mực nước mương liếp, tránh để rễ sầu riêng ngập úng khi triều dâng."
+    },
+    plots: [
+      {
+        id: "plot-tg-1",
+        name: "Lô Liếp 1 - Sầu Riêng Ri6 Cái Bè",
+        cropName: "Sầu riêng",
+        variety: "Ri6",
+        treeCount: 130,
+        plantedYear: 2019,
+        treeAgeYears: 7,
+        stage: "Nuôi trái / Định hình phẩm chất",
+        areaM2: 12000,
+        healthScore: 91,
+        lastInspectionDate: "2026-08-17"
       }
     ]
   }

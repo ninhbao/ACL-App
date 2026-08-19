@@ -117,15 +117,26 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       <div className="bg-[#1E3F1A] rounded-3xl text-white p-6 sm:p-7 shadow-[0_10px_30px_-10px_rgba(30,63,26,0.4)] border border-[#2D5A27]">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="space-y-2.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2D5A27] text-[#A3D99E] text-xs font-semibold border border-emerald-400/20">
-              <Sparkles className="w-3.5 h-3.5 text-[#A3D99E]" />
-              <span>Hồ sơ sức khỏe cá nhân hoá • {garden.cultivationStandard}</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2D5A27] text-[#A3D99E] text-xs font-semibold border border-emerald-400/20 flex-wrap">
+              <span className="font-bold text-white bg-emerald-700/80 px-2 py-0.5 rounded">
+                📍 {garden.region || "Khu Vực"}
+              </span>
+              <span>•</span>
+              <span className="text-[#D1E7D1]">
+                Chủ hộ: <strong className="text-white">{garden.ownerName}</strong>
+              </span>
+              {garden.farmCode && (
+                <>
+                  <span>•</span>
+                  <span className="font-mono text-amber-200">MSVT: {garden.farmCode}</span>
+                </>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               {garden.name}
             </h1>
             <p className="text-[#D1E7D1] text-sm leading-relaxed">
-              Chủ vườn: <strong className="text-white">{garden.ownerName}</strong> ({garden.phone}) • {garden.location}. Tổng diện tích <strong className="text-white">{garden.totalAreaHa} ha</strong> ({totalTrees.toLocaleString()} gốc) trên nền <strong className="text-amber-200">{garden.soilType}</strong>.
+              Vị trí: <strong className="text-white">{garden.location}</strong> • Thổ nhưỡng <strong className="text-amber-200">{garden.soilType}</strong> • Quy mô <strong className="text-white">{garden.totalAreaHa} ha</strong> ({totalTrees.toLocaleString()} gốc trên {totalPlots} lô).
             </p>
           </div>
 
